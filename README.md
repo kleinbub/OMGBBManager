@@ -31,6 +31,9 @@ list of parts. It then fetches each **part** page for its individual stats.
 A preview appears first — set quantity and notes, then **Add to collection**. Nothing is
 stored until you confirm.
 
+**Details** on a card opens the full record: everything from the beyblade's infobox, and one
+panel per part with its picture, stats, weight and blurb.
+
 The **Radar** switch in the toolbar draws each card's stats as a radar chart instead of bars -
 ATK, DEF and STA, plus DASH and BRST when the parts have them - on one scale shared by the whole
 collection, so shapes compare fairly. The choice is remembered in this browser. Both forms end
@@ -101,8 +104,8 @@ with **Export** / **Import**.
 
 ### Parts view
 
-Every part in the collection, grouped by kind, with how many you own and which beyblades
-they came from:
+Every part in the collection, grouped by kind, each row led by the wiki's picture of the piece,
+with how many you own and which beyblades they came from:
 
 - **Blades** (single-piece, Basic/Unique line)
 - **Lock Chips**, **Main Blades**, **Over Blades**, **Metal Blades**, **Assist Blades** - the

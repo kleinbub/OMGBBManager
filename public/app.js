@@ -141,6 +141,13 @@ function integratedNote(part) {
   );
 }
 
+/** The part's own picture from the wiki, or an empty frame in its place. */
+function partThumb(part) {
+  return part?.image
+    ? '<img class="part-thumb" src="' + esc(part.image) + '" alt="" loading="lazy">'
+    : '<span class="part-thumb ph"></span>';
+}
+
 function codeChip(part) {
   return part?.code ? ' <span class="code">' + esc(part.code) + '</span>' : '';
 }
@@ -997,6 +1004,7 @@ function partsView() {
 
   html +=
     '<div class="table-wrap"><table class="parts-table"><thead><tr>' +
+    '<th class="thumb-col"></th>' +
     '<th>' + esc(PART_LABELS[kind]) + '</th><th>Type</th><th class="num">Owned</th>' +
     '<th>Stats</th><th class="num">Weight</th><th>From</th><th></th>' +
     '</tr></thead><tbody>' +
@@ -1011,6 +1019,7 @@ function partsView() {
         const cached = store.data.parts[cachedKey];
         return (
           '<tr class="unowned">' +
+          '<td class="thumb-col">' + partThumb(cached) + '</td>' +
           '<td>' + esc(p.hasbro || cached?.hasbroName || p.name) +
           (cached?.code ? ' <span class="code">' + esc(cached.code) + '</span>' : '') +
           ((p.hasbro || cached?.hasbroName || p.name) !== p.name
@@ -1032,7 +1041,7 @@ function partsView() {
       })
       .join('');
     if (!missing.length && !catalogueFor(kind).length) {
-      html += '<tr><td colspan="7" class="muted small">Press <strong>Sync index</strong> to download the ' +
+      html += '<tr><td colspan="8" class="muted small">Press <strong>Sync index</strong> to download the ' +
         'full catalogue of parts from the wiki.</td></tr>';
     }
   }
@@ -1067,6 +1076,7 @@ function partRow(record, ceiling) {
     .map((s) => '<span class="wish-src">' + esc(s.name) + '</span>');
   return (
     '<tr' + (wishOnly ? ' class="wish-row"' : '') + '>' +
+    '<td class="thumb-col">' + partThumb(part) + '</td>' +
     '<td><strong>' + esc(partName(part)) + '</strong>' + codeChip(part) + integratedNote(part) +
     (partAltName(part) ? ' <span class="muted small">' + esc(partAltName(part)) + '</span>' : '') +
     (part.hasbroReleased === false ? ' <span class="pill warn tiny">import</span>' : '') +
@@ -1756,8 +1766,11 @@ function detailModal() {
         const ceiling = 100;
         return (
           '<div class="part-card">' +
-          '<h4>' + esc(PART_LABELS[kind]) + ': ' + esc(partName(part)) + codeChip(part) + '</h4>' +
+          '<div class="part-card-head">' + partThumb(part) +
+          '<div><h4>' + esc(PART_LABELS[kind]) + ': ' + esc(partName(part)) + codeChip(part) + '</h4>' +
           (partAltName(part) ? '<p class="muted small">wiki: ' + esc(partAltName(part)) + '</p>' : '') +
+          integratedNote(part) +
+          '</div></div>' +
           '<p class="meta">' + (part.type ? badge(part.type) : '') +
           (part.weight ? '<span class="pill">' + part.weight + ' g</span>' : '') +
           (kind === 'ratchet' && ratchetShape(part.name).height

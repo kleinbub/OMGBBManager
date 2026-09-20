@@ -1078,7 +1078,7 @@ button.switch.on {
 }
 .parts-table {
   width: 100%;
-  min-width: 660px;
+  min-width: 712px;
   border-collapse: collapse;
   background: var(--paper);
   color: var(--ink);
@@ -1121,6 +1121,49 @@ button.switch.on {
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------ part pictures */
+
+/* The wiki's own shot of the piece, on white paper like a parts catalogue. */
+.part-thumb {
+  display: block;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  padding: 2px;
+}
+.part-thumb.ph {
+  background: var(--paper-dim);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.07) 0 4px,
+    transparent 4px 8px
+  );
+}
+.parts-table .thumb-col {
+  width: 52px;
+  padding-right: 0;
+}
+.parts-table td.thumb-col {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.part-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.part-card-head .part-thumb {
+  flex: none;
+  width: 58px;
+  height: 58px;
+}
+.part-card-head h4 {
+  margin-bottom: 3px;
 }
 
 /* ----------------------------------------------------------------- analysis */
