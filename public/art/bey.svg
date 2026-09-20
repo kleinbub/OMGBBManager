@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Beyblade seen from above">
+  <title>Beyblade, top view</title>
+  <defs>
+    <path id="lobe" d="M300,300 L300,52 A248,248 0 0 1 476,125 Q386,190 300,300 Z"/>
+    <g id="spark">
+      <path d="M300,16 L316,52 L300,44 L284,52 Z"/>
+    </g>
+  </defs>
+
+  <!-- outer gear teeth -->
+  <circle cx="300" cy="300" r="277" fill="none" stroke="#f4efe3" stroke-width="26"
+          stroke-dasharray="16 22"/>
+  <circle cx="300" cy="300" r="252" fill="none" stroke="#f4efe3" stroke-width="7"/>
+
+  <!-- four swept blades -->
+  <g fill="#e11021">
+    <use href="#lobe"/>
+    <use href="#lobe" transform="rotate(90 300 300)"/>
+    <use href="#lobe" transform="rotate(180 300 300)"/>
+    <use href="#lobe" transform="rotate(270 300 300)"/>
+  </g>
+  <g fill="none" stroke="#f4efe3" stroke-width="6">
+    <use href="#lobe"/>
+    <use href="#lobe" transform="rotate(90 300 300)"/>
+    <use href="#lobe" transform="rotate(180 300 300)"/>
+    <use href="#lobe" transform="rotate(270 300 300)"/>
+  </g>
+
+  <!-- ratchet hub -->
+  <circle cx="300" cy="300" r="146" fill="#0b0b0c" stroke="#f4efe3" stroke-width="8"/>
+  <circle cx="300" cy="300" r="118" fill="none" stroke="#f4efe3" stroke-width="18"
+          stroke-dasharray="10 26"/>
+  <circle cx="300" cy="300" r="60" fill="#e11021" stroke="#f4efe3" stroke-width="8"/>
+
+  <!-- the X -->
+  <path d="M262,262 L338,338 M338,262 L262,338" stroke="#f4efe3" stroke-width="22"
+        stroke-linecap="square"/>
+
+  <!-- motion arcs -->
+  <g fill="none" stroke="#f4efe3" stroke-width="9" stroke-linecap="round" opacity="0.9">
+    <path d="M300,8 A292,292 0 0 1 520,110"/>
+    <path d="M300,592 A292,292 0 0 1 80,490"/>
+  </g>
+</svg>

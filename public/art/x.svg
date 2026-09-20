@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Impact mark">
+  <title>Xtreme impact</title>
+
+  <!-- speed lines driving in from the left -->
+  <g stroke="#f4efe3" stroke-linecap="square">
+    <path d="M0,150 L150,150" stroke-width="10"/>
+    <path d="M20,200 L190,200" stroke-width="18"/>
+    <path d="M0,254 L120,254" stroke-width="7"/>
+    <path d="M40,306 L170,306" stroke-width="24"/>
+    <path d="M0,360 L140,360" stroke-width="12"/>
+    <path d="M30,412 L110,412" stroke-width="7"/>
+  </g>
+
+  <!-- the X -->
+  <path d="M196,96 L300,236 L404,96 L502,96 L358,300 L502,504 L404,504 L300,364
+           L196,504 L98,504 L242,300 L98,96 Z"
+        fill="#e11021" stroke="#f4efe3" stroke-width="10" stroke-linejoin="miter"/>
+
+  <!-- impact shards -->
+  <g fill="#f4efe3">
+    <path d="M516,140 L582,96 L556,178 Z"/>
+    <path d="M534,470 L594,520 L510,536 Z"/>
+    <path d="M262,36 L318,12 L296,74 Z"/>
+    <path d="M282,556 L346,528 L330,588 Z"/>
+  </g>
+
+  <!-- burst ring -->
+  <circle cx="300" cy="300" r="288" fill="none" stroke="#f4efe3" stroke-width="6"
+          stroke-dasharray="4 34"/>
+</svg>

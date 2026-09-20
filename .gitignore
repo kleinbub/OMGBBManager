@@ -1,0 +1,10 @@
+# Everything the app writes at runtime stays out of the repository: shelves,
+# accounts and password hashes, session tokens, the wiki cache and backups.
+data/
+
+node_modules/
+*.log
+*.tmp
+*.lock
+.DS_Store
+Thumbs.db

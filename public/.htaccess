@@ -1,0 +1,58 @@
+# OMGBBManager - Apache configuration for shared hosting.
+# Upload the contents of this folder to public_html (or a subfolder of it).
+
+Options -Indexes
+DirectoryIndex index.html
+
+# --- API routing -------------------------------------------------------------
+# The browser calls api/collection, api/index, api/wiki and api/status.
+# No RewriteBase, so this works at the document root and in a subfolder alike.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never serve the collection data, wherever it ends up.
+    RewriteRule (^|/)data/ - [F,L]
+
+    RewriteRule ^api/(collection|index|wiki|status|me|login|logout|register|settings|users)/?$ api.php?route=$1 [QSA,L]
+</IfModule>
+
+# --- Protect the data directory even without mod_rewrite ---------------------
+<IfModule mod_alias.c>
+    RedirectMatch 403 (^|/)data/
+</IfModule>
+
+# --- Correct types so ES modules load ---------------------------------------
+<IfModule mod_mime.c>
+    AddType text/javascript .js
+    AddType text/css .css
+    AddType application/json .json
+    AddType image/svg+xml .svg
+</IfModule>
+
+# --- Compression and caching -------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_headers.c>
+    # The app is a single page plus modules; do not let a stale bundle linger.
+    <FilesMatch "\.(html|js|css)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>
+
+# --- Password protection -----------------------------------------------------
+# There is no login screen: anyone who can reach the page can edit the
+# collection. On a public host, protect the whole folder.
+#
+# Easiest route: cPanel -> Directory Privacy -> pick this folder -> add a user.
+# Manual alternative - create the password file with
+#     htpasswd -c /home/YOURUSER/.htpasswd yourname
+# then uncomment:
+#
+# AuthType Basic
+# AuthName "Beyblade collection"
+# AuthUserFile /home/YOURUSER/.htpasswd
+# Require valid-user

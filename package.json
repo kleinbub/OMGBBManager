@@ -1,0 +1,13 @@
+{
+  "name": "omgbbmanager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-contained Beyblade X collection manager with JSON storage and a cached Beyblade Wiki fetcher",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
