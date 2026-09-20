@@ -19,6 +19,9 @@
   --blood: #e11021;
   --blood-dark: #96000f;
   --gold: #ffc400;
+  /* bought, but still in the post */
+  --transit: #12c2d4;
+  --transit-dark: #0b7f8c;
 
   --attack: #e11021;
   --defense: #1f63d6;
@@ -1438,7 +1441,211 @@ button.switch.on {
   color: var(--ink);
 }
 
-/* parts table: wished-for parts share the table but not the paper */
+/* --------------------------------------------------------------- shipping */
+
+/* Paid for, not here yet: parcel tape across the corner and a dotted frame. */
+.card.shipping {
+  --flash: var(--transit);
+  border-style: dotted;
+  border-top-style: solid;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(18, 194, 212, 0.16) 0 12px,
+    transparent 12px 24px
+  );
+  box-shadow: 6px 6px 0 var(--transit-dark);
+}
+.card.shipping .card-head {
+  padding-right: 96px;
+}
+.card.shipping .card-serial {
+  background: var(--transit);
+  color: var(--ink);
+}
+.card.shipping .stat-fill {
+  opacity: 0.7;
+}
+.card.shipping::before {
+  content: "In transit";
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  right: 10px;
+  padding: 3px 9px 1px;
+  font: 400 18px/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--transit-dark);
+  background: rgba(244, 239, 227, 0.88);
+  border: 3px solid var(--transit-dark);
+  transform: rotate(-7deg);
+  pointer-events: none;
+}
+.ship-btn {
+  background: var(--transit);
+  color: var(--ink);
+}
+.pill.shipping-pill {
+  background: var(--transit);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------- status control */
+
+.status-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.status-btn .swatch {
+  margin-left: 0;
+  margin-right: 5px;
+  width: 9px;
+  height: 9px;
+  border-width: 1px;
+  border-color: var(--ink);
+}
+.status-btn .caret {
+  margin-left: 4px;
+}
+.status-btn.status-wish {
+  background: var(--gold);
+}
+.status-btn.status-shipping {
+  background: var(--transit);
+}
+
+/* The popup: the whole status change in one click, off the action row. */
+.status-menu {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: var(--hard);
+}
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: flex-start;
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid var(--paper-edge);
+  box-shadow: none;
+  transform: none;
+  text-align: left;
+  padding: 9px 11px;
+}
+.status-option .swatch {
+  margin-left: 0;
+  margin-right: 7px;
+  width: 11px;
+  height: 11px;
+  border-width: 1px;
+  border-color: var(--ink);
+}
+.status-option .tick {
+  margin-left: auto;
+  color: var(--blood);
+}
+.status-option.current {
+  background: var(--paper-dim);
+}
+.status-option:hover:not(:disabled) {
+  background: var(--gold);
+  box-shadow: none;
+  transform: none;
+}
+.status-option.danger {
+  border-bottom: none;
+  border-top: 3px solid var(--ink);
+  color: var(--blood-dark);
+}
+.status-option.danger:hover {
+  background: var(--blood);
+  color: var(--paper);
+}
+
+/* Include or exclude each status; the chips carry their own colour. */
+.status-filter {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+}
+.status-chip .swatch {
+  margin-left: 0;
+  margin-right: 5px;
+  width: 9px;
+  height: 9px;
+  border-width: 1px;
+  border-color: var(--ink);
+}
+.status-chip:not(.on) {
+  background: var(--ink-soft);
+  color: var(--paper-dim);
+  border-color: var(--paper-edge);
+  box-shadow: none;
+}
+.status-chip:not(.on) .swatch {
+  opacity: 0.35;
+}
+.status-chip.on.status-wish {
+  background: var(--gold);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.status-chip.on.status-shipping {
+  background: var(--transit);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.status-chip.on.status-owned {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* parts table: parts in the post, and wished-for parts, share the table but
+   not the paper */
+.parts-table tbody tr.shipping-row td {
+  background: rgba(18, 194, 212, 0.26);
+}
+.parts-table tbody tr.shipping-row td:first-child {
+  box-shadow: inset 7px 0 0 var(--transit);
+}
+.parts-table tbody tr.shipping-row:hover td {
+  background: var(--transit);
+}
+.ship-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  font: 700 9px/1.4 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--transit);
+  border: 1px solid var(--ink);
+}
+.ship-src {
+  color: var(--transit-dark);
+  font-style: italic;
+}
+.ship-src::before {
+  content: "coming: ";
+  font-style: normal;
+  font-weight: 700;
+}
+
+
 .parts-table tbody tr.wish-row td {
   background: rgba(255, 196, 0, 0.3);
 }
@@ -1493,6 +1700,9 @@ button.switch.on {
 }
 .swatch.wish {
   background: var(--gold);
+}
+.swatch.shipping {
+  background: var(--transit);
 }
 
 /* -------------------------------------------------------------- bladers */

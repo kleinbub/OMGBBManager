@@ -422,11 +422,16 @@ function summariseCollection(doc) {
   const types = new Map();
   let units = 0;
   let wishlist = 0;
+  let shipping = 0;
 
   for (const bey of beys) {
-    // Wishlist entries are wants, not holdings: count them apart.
+    // Wants and parcels in the post are not holdings: count them apart.
     if (bey.status === 'wish') {
       wishlist += 1;
+      continue;
+    }
+    if (bey.status === 'shipping') {
+      shipping += 1;
       continue;
     }
     const qty = Math.max(1, Number(bey.qty) || 1);
@@ -445,8 +450,9 @@ function summariseCollection(doc) {
     }
   }
   return {
-    products: beys.length - wishlist,
+    products: beys.length - wishlist - shipping,
     wishlist,
+    shipping,
     units,
     uniqueParts: partKeys.size,
     combos: Array.isArray(doc.combos) ? doc.combos.length : 0,

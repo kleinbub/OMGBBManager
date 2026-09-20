@@ -143,26 +143,39 @@ Visiting is read-only in both directions: the browser hides the controls, and th
 ignores the requested user on any write and saves to your own shelf regardless. Every
 signed-in blader can read every shelf; there is no per-shelf privacy setting.
 
-### Wishlist
+### Owned, shipping, wishlist
 
-After **Fetch from wiki**, the preview offers two buttons: **Add to collection** or
-**Add to wishlist**. If the product is already on your shelf the preview says so, and adding
-something you had wished for to the collection ticks the wish off rather than leaving a
-duplicate behind. **Got it** on a wishlist card does the same, and **Wish it** on an owned card
-sends it back the other way - for something sold, lent out, or wanted again in another colour.
+Every beyblade sits in one of three states, and the whole app follows that state:
 
-Wished-for beyblades share the grid with owned ones and sort together with them - a wish
-still lands in the right place when you sort by weight - but they are drawn on different
-paper: dashed frame, yellow hatching, and a red *Wanted* stamp in the corner. The
-**Owned + wishlist / Owned only / Wishlist only** selector narrows the grid.
+| Status | Means | Paper |
+| --- | --- | --- |
+| **Owned** | on the shelf, in hand | plain |
+| **Shipping** | bought and on its way | cyan hatching, dotted frame, *In transit* stamp |
+| **Wishlist** | wanted, not bought yet | yellow hatching, dashed frame, *Wanted* stamp |
 
-In the Parts view, parts that only appear on the wishlist are listed alongside owned ones in
-yellow rows; a part you own and also wish for shows a `+N wish` chip next to its count.
+After **Fetch from wiki** the preview offers all three: **Add to collection**, **Add as
+shipping**, **Add to wishlist**. If the product is already on your shelf the preview says so,
+and adding something you had wished for - as owned or as shipping - moves that entry along
+rather than leaving a duplicate behind.
 
-Wishlists live in the same shelf file (`"status": "wish"`), so opening another blader's shelf
-shows their wishlist too, read-only. Everything that describes ownership - the Analysis view,
-the footer counter, the Bladers stats - counts only what is owned; the wishlist is reported
-separately.
+On a card, the **Status** button opens a small popup with *Owned*, *Shipping*, *Wishlist* and
+*Delete*: one click to move a beyblade between states, and the only place delete lives, so the
+action row stays short. Escape or a click anywhere else closes it. The dates follow the moves -
+`wishedAt` when it was wanted, `orderedAt` when it was ordered, `addedAt` when it reached the
+shelf.
+
+All three share the grid and sort together - something in the post still lands in the right
+place when you sort by weight. The three chips in the toolbar switch each status on or off
+independently, so any combination can be shown; turning the last one off brings them all back.
+
+In the Parts view, parts that are only coming or only wished for are listed alongside owned
+ones in cyan and yellow rows, and a part you own and have more of on the way shows a
+`+N coming` chip next to its count.
+
+Statuses live in the same shelf file (`"status": "shipping"` / `"wish"`), so opening another
+blader's shelf shows theirs too, read-only. Everything that describes ownership - the Analysis
+view, the footer counter, the parts you can build combos from, the Bladers stats - counts only
+what is owned; shipping and wishlist are reported separately.
 
 ### Saving, tabs and recovery
 
@@ -388,6 +401,7 @@ header shows `browser only`.
       "displayName": "Reaper Rhino C4-55D", // Hasbro name
       "qty": 1,
       "notes": "",
+      "status": "owned",                    // "owned" | "shipping" | "wish"
       "bey": { "type": "Defense", "system": "Custom Line", "weight": 42.5,
                "productCodes": { "hasbro": "G2746", "takaraTomy": "CX-05" },
                "partRefs": { "lockChip": "Rhino", "mainBlade": "Reaper",

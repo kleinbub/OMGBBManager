@@ -605,9 +605,25 @@ export function discardRecovery() {
 
 /* ----------------------------------------------------------------- mutation */
 
-/** Entries written before the wishlist existed have no status: they are owned. */
+/*
+ * Where a beyblade stands: on the shelf, paid for and in the post, or still
+ * only wanted. Entries written before statuses existed have none: they are
+ * owned.
+ */
+export const STATUSES = ['owned', 'shipping', 'wish'];
+
+export function entryStatus(entry) {
+  const status = entry && entry.status;
+  return status === 'wish' || status === 'shipping' ? status : 'owned';
+}
+
 export function isWish(entry) {
-  return Boolean(entry) && entry.status === 'wish';
+  return entryStatus(entry) === 'wish';
+}
+
+/** Is it physically here? Shipping and wished-for ones are not. */
+export function isHeld(entry) {
+  return entryStatus(entry) === 'owned';
 }
 
 function newId() {
@@ -650,7 +666,7 @@ export function addBeyblade({
     displayName: bey.hasbroName || bey.wikiName || input,
     qty: Number(qty) || 1,
     notes,
-    status: status === 'wish' ? 'wish' : 'owned',
+    status: STATUSES.includes(status) ? status : 'owned',
     addedAt: new Date().toISOString(),
     bey,
     partKeys,
@@ -661,15 +677,21 @@ export function addBeyblade({
     const previous = store.data.beyblades[existing];
     entry.addedAt = previous.addedAt;
     if (previous.wishedAt) entry.wishedAt = previous.wishedAt;
-    if (isWish(previous) && entry.status === 'owned') {
-      // A wish coming true: it joins the collection today.
-      entry.wishedAt = previous.addedAt;
+    if (previous.orderedAt) entry.orderedAt = previous.orderedAt;
+    if (!isHeld(previous) && entry.status === 'owned') {
+      // A wish coming true, or a parcel arriving: it joins the collection today.
+      if (isWish(previous)) entry.wishedAt = previous.wishedAt || previous.addedAt;
       entry.addedAt = new Date().toISOString();
+    } else if (entry.status === 'shipping' && entryStatus(previous) !== 'shipping') {
+      // Ordered today, whether it was wished for or bought outright.
+      entry.orderedAt = new Date().toISOString();
     }
     store.data.beyblades[existing] = entry;
   } else {
     store.data.beyblades.push(entry);
   }
+  // Something added straight to the shipping list was ordered the day it was added.
+  if (entry.status === 'shipping' && !entry.orderedAt) entry.orderedAt = entry.addedAt;
   queueOps(entryOps(entry, true));
   return entry;
 }
@@ -682,23 +704,27 @@ export function updateBeyblade(id, patch) {
   return entry;
 }
 
-/** Move a wishlist entry into the collection. */
-export function acquireBeyblade(id) {
+/**
+ * Move a beyblade between owned, shipping and the wishlist. The dates say how
+ * it got there: when it was wished for, when it was ordered, and when it
+ * finally reached the shelf.
+ */
+export function setEntryStatus(id, status) {
   const entry = store.data.beyblades.find((b) => b.id === id);
-  if (!isWish(entry)) return null;
-  entry.status = 'owned';
-  entry.wishedAt = entry.addedAt;
-  entry.addedAt = new Date().toISOString();
-  queueOps(entryOps(entry, false));
-  return entry;
-}
+  if (!entry || !STATUSES.includes(status)) return null;
+  const from = entryStatus(entry);
+  if (from === status) return entry;
+  const now = new Date().toISOString();
 
-/** Put an owned beyblade back on the wishlist - the other way round from acquire. */
-export function wishBeyblade(id) {
-  const entry = store.data.beyblades.find((b) => b.id === id);
-  if (!entry || isWish(entry)) return null;
-  entry.status = 'wish';
-  entry.wishedAt = new Date().toISOString();
+  entry.status = status;
+  if (status === 'owned') {
+    if (from === 'wish') entry.wishedAt = entry.wishedAt || entry.addedAt;
+    entry.addedAt = now;
+  } else if (status === 'wish') {
+    entry.wishedAt = now;
+  } else {
+    entry.orderedAt = now;
+  }
   queueOps(entryOps(entry, false));
   return entry;
 }
@@ -800,29 +826,25 @@ export function comboTags() {
 /* --------------------------------------------------------------- aggregates */
 
 /**
- * Every part on the shelf, owned or wished for. `count` is what is physically
- * there; `wishCount` is what the wishlist would add.
+ * Every part the shelf knows of. `count` is what is physically here;
+ * `shipCount` is in the post, `wishCount` is only wished for.
  */
 export function partInventory() {
   const inventory = new Map();
   for (const entry of store.data.beyblades) {
     const qty = Number(entry.qty) || 1;
-    const wish = isWish(entry);
+    const status = entryStatus(entry);
     for (const [kind, key] of Object.entries(entry.partKeys || {})) {
       const part = store.data.parts[key];
       if (!part) continue;
       if (!inventory.has(key)) {
-        inventory.set(key, { key, kind, part, count: 0, wishCount: 0, sources: [] });
+        inventory.set(key, { key, kind, part, count: 0, shipCount: 0, wishCount: 0, sources: [] });
       }
       const record = inventory.get(key);
-      if (wish) record.wishCount += qty;
+      if (status === 'wish') record.wishCount += qty;
+      else if (status === 'shipping') record.shipCount += qty;
       else record.count += qty;
-      record.sources.push({
-        id: entry.id,
-        name: entry.displayName,
-        qty,
-        status: wish ? 'wish' : 'owned',
-      });
+      record.sources.push({ id: entry.id, name: entry.displayName, qty, status });
     }
   }
   return inventory;
@@ -869,10 +891,11 @@ function bump(map, key, by = 1) {
   map.set(key, (map.get(key) || 0) + by);
 }
 
-/** Analysis describes what is owned; the wishlist is only counted. */
+/** Analysis describes what is owned; wished-for and shipping ones are only counted. */
 export function distribution() {
-  const beys = store.data.beyblades.filter((b) => !isWish(b));
-  const wishlistProducts = store.data.beyblades.length - beys.length;
+  const beys = store.data.beyblades.filter(isHeld);
+  const wishlistProducts = store.data.beyblades.filter(isWish).length;
+  const shippingProducts = store.data.beyblades.length - beys.length - wishlistProducts;
   const totalUnits = beys.reduce((sum, b) => sum + (Number(b.qty) || 1), 0);
 
   const beyTypes = new Map();
@@ -944,6 +967,7 @@ export function distribution() {
   return {
     totalProducts: beys.length,
     wishlistProducts,
+    shippingProducts,
     totalUnits,
     beyTypes,
     beySystems,

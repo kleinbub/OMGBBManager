@@ -1067,10 +1067,15 @@ function summarise_collection($doc)
     $partKeys = array();
     $types = array();
     $wishlist = 0;
+    $shipping = 0;
     foreach ($beys as $bey) {
-        // Wishlist entries are wants, not holdings: count them apart.
+        // Wants and parcels in the post are not holdings: count them apart.
         if (isset($bey['status']) && $bey['status'] === 'wish') {
             $wishlist++;
+            continue;
+        }
+        if (isset($bey['status']) && $bey['status'] === 'shipping') {
+            $shipping++;
             continue;
         }
         $qty = isset($bey['qty']) ? (int) $bey['qty'] : 1;
@@ -1097,8 +1102,9 @@ function summarise_collection($doc)
         }
     }
     return array(
-        'products' => count($beys) - $wishlist,
+        'products' => count($beys) - $wishlist - $shipping,
         'wishlist' => $wishlist,
+        'shipping' => $shipping,
         'units' => $units,
         'uniqueParts' => count($partKeys),
         'combos' => (isset($doc['combos']) && is_array($doc['combos'])) ? count($doc['combos']) : 0,

@@ -41,9 +41,11 @@ import {
   reloadIndex,
   onBroadcast,
   addBeyblade,
-  acquireBeyblade,
-  wishBeyblade,
+  setEntryStatus,
+  STATUSES,
+  entryStatus,
   isWish,
+  isHeld,
   updateBeyblade,
   removeBeyblade,
   partsOf,
@@ -61,13 +63,22 @@ import {
 
 const TYPE_ORDER = ['Attack', 'Defense', 'Stamina', 'Balance'];
 
+/* How each status is written and what it is called on screen. */
+const STATUS_LABELS = { owned: 'Owned', shipping: 'Shipping', wish: 'Wishlist' };
+const STATUS_HINTS = {
+  owned: 'On the shelf, in hand',
+  shipping: 'Bought and on its way',
+  wish: 'Wanted, not bought yet',
+};
+
 const ui = {
   view: 'collection',
   partKind: 'blade',
   showUnowned: false,
   search: '',
   typeFilter: 'all',
-  shelfFilter: 'all', // 'all' | 'owned' | 'wish'
+  shelfFilter: [...STATUSES], // which of owned / shipping / wish to show
+  statusMenuId: null, // the card whose status popup is open
   statsMode: readStatsMode(), // 'bars' | 'radar'
   sort: 'added-desc',
   comboFilter: [], // tags to show; empty means every combo
@@ -364,22 +375,23 @@ async function doFetch({ forceTitle = null, fresh = false } = {}) {
   }
 }
 
-function confirmPending(status = 'owned') {
+function confirmPending(status) {
   if (!ui.pending) return;
   const qty = Number(document.getElementById('pending-qty')?.value) || 1;
   const notes = document.getElementById('pending-notes')?.value || '';
   const title = ui.pending.bey?.wikiTitle;
-  // Buying something you wished for ticks the wish off instead of duplicating it.
-  const wished =
-    status === 'owned' && title
-      ? store.data.beyblades.find((b) => isWish(b) && b.bey?.wikiTitle === title)
+  // Ordering or receiving something you already wanted moves that entry along
+  // instead of leaving a duplicate behind.
+  const pendingEntry =
+    status !== 'wish' && title
+      ? store.data.beyblades.find((b) => !isHeld(b) && b.bey?.wikiTitle === title)
       : null;
   addBeyblade({
     ...ui.pending,
     qty,
-    notes: notes || (wished ? wished.notes : ''),
+    notes: notes || (pendingEntry ? pendingEntry.notes : ''),
     status,
-    id: wished ? wished.id : null,
+    id: pendingEntry ? pendingEntry.id : null,
   });
   ui.pending = null;
   ui.input = '';
@@ -642,12 +654,15 @@ function addPanel() {
     const same = store.data.beyblades.filter(
       (b) => b.bey?.wikiTitle && b.bey.wikiTitle === pending.bey.wikiTitle
     );
-    const ownedCopy = same.find((b) => !isWish(b));
+    const ownedCopy = same.find(isHeld);
+    const onTheWay = same.find((b) => entryStatus(b) === 'shipping');
     const hint = ownedCopy
       ? 'Already in your collection (x' + ownedCopy.qty + ').'
-      : same.length
-        ? 'Already on your wishlist - adding it to the collection ticks it off.'
-        : '';
+      : onTheWay
+        ? 'Already marked as shipping - adding it as owned marks it arrived.'
+        : same.length
+          ? 'Already on your wishlist - adding it moves that entry along.'
+          : '';
     html +=
       '<div class="preview">' +
       '<div class="preview-main">' +
@@ -675,6 +690,8 @@ function addPanel() {
       '<a class="ghost wiki-check" href="' + esc(pending.bey.wikiUrl || '#') + '" target="_blank" rel="noopener" ' +
       'title="Open the wiki page in a new tab">Check on wiki</a>' +
       '<button class="primary" data-action="confirm" data-status="owned">Add to collection</button>' +
+      '<button class="ghost ship-btn" data-action="confirm" data-status="shipping" ' +
+      'title="Bought, but still on its way">Add as shipping</button>' +
       '<button class="ghost wish-btn" data-action="confirm" data-status="wish">Add to wishlist</button>' +
       '<button class="ghost" data-action="cancel-pending">Cancel</button>' +
       (hint ? '<p class="preview-note">' + esc(hint) + '</p>' : '') +
@@ -749,27 +766,27 @@ function statCeiling(list) {
 
 function collectionView() {
   const entries = filteredEntries();
-  const ownedTotal = store.data.beyblades.filter((entry) => !isWish(entry)).length;
-  const wishTotal = store.data.beyblades.length - ownedTotal;
-  const ownedShown = entries.filter((entry) => !isWish(entry)).length;
+  const totals = Object.fromEntries(
+    STATUSES.map((status) => [status, store.data.beyblades.filter((e) => entryStatus(e) === status).length])
+  );
   const ceiling = statCeiling(store.data.beyblades.map((e) => combinedStats(e)));
 
   let html = store.viewing.isSelf ? addPanel() : '';
   html +=
     '<section class="toolbar">' +
     '<input id="search" type="search" placeholder="Filter by name, part, code..." value="' + esc(ui.search) + '">' +
-    '<select id="shelf-filter" title="Show owned beyblades, wished-for ones, or both">' +
-    [
-      ['all', 'Owned + wishlist'],
-      ['owned', 'Owned only'],
-      ['wish', 'Wishlist only'],
-    ]
-      .map(
-        ([value, label]) =>
-          '<option value="' + value + '"' + (ui.shelfFilter === value ? ' selected' : '') + '>' + label + '</option>'
-      )
-      .join('') +
-    '</select>' +
+    // Each status can be shown or hidden on its own; turning the last one off
+    // brings them all back rather than emptying the grid.
+    '<span class="status-filter">' +
+    STATUSES.map(
+      (status) =>
+        '<button class="chip status-chip status-' + status +
+        (ui.shelfFilter.includes(status) ? ' on' : '') + '" data-action="shelf-filter" ' +
+        'data-status="' + status + '" title="' + esc(STATUS_HINTS[status]) + '">' +
+        '<i class="swatch ' + status + '"></i>' + esc(STATUS_LABELS[status]) +
+        ' <span class="count">' + totals[status] + '</span></button>'
+    ).join('') +
+    '</span>' +
     '<select id="type-filter">' +
     ['all', ...TYPE_ORDER]
       .map(
@@ -799,8 +816,7 @@ function collectionView() {
     'aria-checked="' + (ui.statsMode === 'radar') + '" title="Show stats as a radar chart instead of bars">' +
     '<span class="switch-label">Radar</span><span class="switch-track"><span class="switch-knob"></span></span>' +
     '</button>' +
-    '<span class="muted small">' + ownedShown + '/' + ownedTotal + ' owned &middot; ' +
-    (entries.length - ownedShown) + '/' + wishTotal + ' wished</span>' +
+    '<span class="muted small">' + entries.length + '/' + store.data.beyblades.length + ' shown</span>' +
     '</section>';
 
   if (!store.data.beyblades.length) {
@@ -826,12 +842,45 @@ function collectionView() {
   return html;
 }
 
+/**
+ * The status popup: one click to move a beyblade between owned, shipping and
+ * the wishlist, or to delete it - so the card's action row stays short.
+ */
+function statusControl(entry) {
+  const status = entryStatus(entry);
+  const open = ui.statusMenuId === entry.id;
+  const options = STATUSES.map(
+    (value) =>
+      '<button class="status-option status-' + value + (value === status ? ' current' : '') + '" ' +
+      'data-action="set-status" data-id="' + entry.id + '" data-status="' + value + '" ' +
+      'title="' + esc(STATUS_HINTS[value]) + '">' +
+      '<i class="swatch ' + value + '"></i>' + esc(STATUS_LABELS[value]) +
+      (value === status ? '<span class="tick">&#10003;</span>' : '') +
+      '</button>'
+  ).join('');
+
+  return (
+    '<span class="status-wrap">' +
+    '<button class="ghost small status-btn status-' + status + '" data-action="status-menu" ' +
+    'data-id="' + entry.id + '" aria-expanded="' + open + '" ' +
+    'title="Change where this beyblade stands">' +
+    '<i class="swatch ' + status + '"></i>' + esc(STATUS_LABELS[status]) + ' <span class="caret">&#9662;</span>' +
+    '</button>' +
+    (open
+      ? '<span class="status-menu" role="menu">' + options +
+        '<button class="status-option danger" data-action="remove" data-id="' + entry.id + '">' +
+        'Delete</button></span>'
+      : '') +
+    '</span>'
+  );
+}
+
 function beyCard(entry, ceiling, serial) {
   const parts = partsOf(entry);
   const bey = entry.bey || {};
   const stats = combinedStats(entry);
   const cx = Boolean(parts.lockChip);
-  const wish = isWish(entry);
+  const status = entryStatus(entry);
   const mine = store.viewing.isSelf;
   const id = entry.id;
   // Radar mode puts the picture beside the chart instead of beside the title.
@@ -841,33 +890,31 @@ function beyCard(entry, ceiling, serial) {
     : '<div class="thumb ph"></div>';
 
   let actions = '<button class="ghost small" data-action="detail" data-id="' + id + '">Details</button>';
-  if (wish && mine) {
+  if (mine) {
+    // Quantity only means something for copies you have or are getting.
+    if (status !== 'wish') {
+      actions +=
+        '<button class="ghost small" data-action="qty-dec" data-id="' + id + '">-</button>' +
+        '<span class="qty-label">' + entry.qty + '</span>' +
+        '<button class="ghost small" data-action="qty-inc" data-id="' + id + '">+</button>';
+    }
     actions +=
-      '<button class="ghost small got-it" data-action="acquire" data-id="' + id + '" ' +
-      'title="Move it into the collection">Got it</button>' +
+      statusControl(entry) +
       '<button class="ghost small" data-action="refetch" data-id="' + id + '">Re-fetch</button>';
-  } else if (!wish && mine) {
-    actions +=
-      '<button class="ghost small" data-action="qty-dec" data-id="' + id + '">-</button>' +
-      '<span class="qty-label">' + entry.qty + '</span>' +
-      '<button class="ghost small" data-action="qty-inc" data-id="' + id + '">+</button>' +
-      '<button class="ghost small wish-btn" data-action="wish-it" data-id="' + id + '" ' +
-      'title="Move it back to the wishlist">Wish it</button>' +
-      '<button class="ghost small" data-action="refetch" data-id="' + id + '">Re-fetch</button>';
-  } else if (!wish) {
+  } else if (status !== 'wish') {
     actions += '<span class="qty-label">x' + entry.qty + '</span>';
   }
   actions += '<a class="ghost small" href="' + esc(bey.wikiUrl || '#') + '" target="_blank" rel="noopener">Wiki</a>';
-  if (mine) {
-    actions += '<button class="ghost small danger" data-action="remove" data-id="' + id + '">Remove</button>';
-  }
 
-  const tag = wish
-    ? 'Wish.' + String(serial).padStart(2, '0')
-    : 'No.' + String(serial).padStart(3, '0');
+  const tag =
+    status === 'wish'
+      ? 'Wish.' + String(serial).padStart(2, '0')
+      : status === 'shipping'
+        ? 'Ship.' + String(serial).padStart(2, '0')
+        : 'No.' + String(serial).padStart(3, '0');
 
   return (
-    '<article class="card' + (wish ? ' wish' : '') + '" data-id="' + id + '" data-type="' + esc(bey.type || '') + '">' +
+    '<article class="card ' + status + '" data-id="' + id + '" data-type="' + esc(bey.type || '') + '">' +
     '<span class="card-serial">' + tag + '</span>' +
     '<div class="card-head">' +
     (radar ? '' : picture) +
@@ -912,8 +959,7 @@ function beyCard(entry, ceiling, serial) {
 function filteredEntries() {
   const term = ui.search.trim().toLowerCase();
   let entries = store.data.beyblades.filter((entry) => {
-    if (ui.shelfFilter === 'owned' && isWish(entry)) return false;
-    if (ui.shelfFilter === 'wish' && !isWish(entry)) return false;
+    if (!ui.shelfFilter.includes(entryStatus(entry))) return false;
     if (ui.typeFilter !== 'all' && (entry.bey?.type || '') !== ui.typeFilter) return false;
     if (!term) return true;
     const parts = Object.values(partsOf(entry)).map((p) => p.name + ' ' + (p.code || ''));
@@ -983,7 +1029,8 @@ function partsView() {
       );
     }).join('') +
     '</div>' +
-    '<span class="legend"><i class="swatch owned"></i>Owned<i class="swatch wish"></i>Wishlist</span>' +
+    '<span class="legend"><i class="swatch owned"></i>Owned' +
+    '<i class="swatch shipping"></i>Shipping<i class="swatch wish"></i>Wishlist</span>' +
     '<label class="toggle"><input type="checkbox" id="show-unowned"' + (ui.showUnowned ? ' checked' : '') +
     '> show parts I do not own</label>' +
     '</section>';
@@ -1067,15 +1114,18 @@ function miniStats(stats, ceiling) {
 
 function partRow(record, ceiling) {
   const part = record.part;
-  const wishOnly = record.count === 0;
-  const owners = record.sources
-    .filter((s) => s.status !== 'wish')
-    .map((s) => esc(s.name));
+  // A part is only owned if one of the beyblades holding it is in hand; if not,
+  // the row takes the colour of the nearest thing to it - shipping, then wish.
+  const state = record.count ? 'owned' : record.shipCount ? 'shipping' : 'wish';
+  const owners = record.sources.filter((s) => s.status === 'owned').map((s) => esc(s.name));
+  const shippers = record.sources
+    .filter((s) => s.status === 'shipping')
+    .map((s) => '<span class="ship-src">' + esc(s.name) + '</span>');
   const wishers = record.sources
     .filter((s) => s.status === 'wish')
     .map((s) => '<span class="wish-src">' + esc(s.name) + '</span>');
   return (
-    '<tr' + (wishOnly ? ' class="wish-row"' : '') + '>' +
+    '<tr' + (state === 'owned' ? '' : ' class="' + state + '-row"') + '>' +
     '<td class="thumb-col">' + partThumb(part) + '</td>' +
     '<td><strong>' + esc(partName(part)) + '</strong>' + codeChip(part) + integratedNote(part) +
     (partAltName(part) ? ' <span class="muted small">' + esc(partAltName(part)) + '</span>' : '') +
@@ -1083,11 +1133,12 @@ function partRow(record, ceiling) {
     '</td>' +
     '<td>' + (part.type ? badge(part.type) : '<span class="muted small">-</span>') + '</td>' +
     '<td class="num">' + record.count +
+    (record.shipCount ? ' <span class="ship-chip">+' + record.shipCount + ' coming</span>' : '') +
     (record.wishCount ? ' <span class="wish-chip">+' + record.wishCount + ' wish</span>' : '') +
     '</td>' +
     '<td>' + miniStats(part.stats, ceiling) + '</td>' +
     '<td class="num">' + (part.weight ? part.weight + ' g' : '-') + '</td>' +
-    '<td class="muted small">' + owners.concat(wishers).join(', ') + '</td>' +
+    '<td class="muted small">' + owners.concat(shippers, wishers).join(', ') + '</td>' +
     '<td class="row-actions">' +
     '<a class="ghost small" href="' + esc(part.wikiUrl || '#') + '" target="_blank" rel="noopener">Wiki</a>' +
     '</td></tr>'
@@ -1578,6 +1629,7 @@ function analysisView() {
     ['Units owned', d.totalUnits],
     ['Unique parts', Object.values(d.uniqueParts).reduce((a, b) => a + b, 0)],
     ['Avg weight', d.averageWeight ? d.averageWeight.toFixed(1) + ' g' : '-'],
+    ['In shipping', d.shippingProducts],
     ['On the wishlist', d.wishlistProducts],
   ];
 
@@ -1682,6 +1734,7 @@ function bladerCard(person) {
     bladerFact('Beyblades', stats.products || 0) +
     bladerFact('Units', stats.units || 0) +
     bladerFact('Unique parts', stats.uniqueParts || 0) +
+    bladerFact('Shipping', stats.shipping || 0) +
     bladerFact('Wishlist', stats.wishlist || 0) +
     bladerFact('Combos', stats.combos || 0) +
     bladerFact(
@@ -1744,7 +1797,10 @@ function detailModal() {
     '<div class="modal" role="dialog" aria-modal="true">' +
     '<button class="modal-close" data-action="close-detail">&times;</button>' +
     '<h2>' + esc(entry.displayName) + '</h2>' +
-    (isWish(entry) ? '<p class="meta"><span class="pill wish-pill">On the wishlist</span></p>' : '') +
+    (isHeld(entry)
+      ? ''
+      : '<p class="meta"><span class="pill ' + entryStatus(entry) + '-pill">' +
+        (isWish(entry) ? 'On the wishlist' : 'Bought, on its way') + '</span></p>') +
     '<p class="muted small">Wiki page: <a href="' + esc(bey.wikiUrl) + '" target="_blank" rel="noopener">' +
     esc(bey.wikiTitle) + '</a></p>' +
     (bey.blurb ? '<p class="blurb">' + esc(bey.blurb) + '</p>' : '') +
@@ -1804,7 +1860,7 @@ function footer() {
   }
 
   const units = store.data.beyblades
-    .filter((b) => !isWish(b))
+    .filter(isHeld)
     .reduce((sum, b) => sum + (Number(b.qty) || 1), 0);
   const odometer = String(units)
     .padStart(5, '0')
@@ -1914,7 +1970,7 @@ const ACTIONS = {
   },
   fetch: () => doFetch(),
   choose: (el) => doFetch({ forceTitle: el.dataset.title }),
-  confirm: (el) => confirmPending(el.dataset.status === 'wish' ? 'wish' : 'owned'),
+  confirm: (el) => confirmPending(el.dataset.status),
   'cancel-pending': () => {
     ui.pending = null;
     render();
@@ -1935,11 +1991,12 @@ const ACTIONS = {
   },
   remove: (el) => {
     const entry = store.data.beyblades.find((b) => b.id === el.dataset.id);
-    const from = isWish(entry) ? ' from the wishlist?' : ' from the collection?';
-    if (entry && confirm('Remove ' + entry.displayName + from)) {
+    const from = { owned: 'the collection', shipping: 'the shipping list', wish: 'the wishlist' };
+    ui.statusMenuId = null;
+    if (entry && confirm('Delete ' + entry.displayName + ' from ' + from[entryStatus(entry)] + '?')) {
       removeBeyblade(el.dataset.id);
-      render();
     }
+    render();
   },
   'qty-inc': (el) => {
     const entry = store.data.beyblades.find((b) => b.id === el.dataset.id);
@@ -1952,12 +2009,21 @@ const ACTIONS = {
     render();
   },
   refetch: (el) => refetchEntry(el.dataset.id),
-  acquire: (el) => {
-    acquireBeyblade(el.dataset.id);
+  'status-menu': (el) => {
+    ui.statusMenuId = ui.statusMenuId === el.dataset.id ? null : el.dataset.id;
     render();
   },
-  'wish-it': (el) => {
-    wishBeyblade(el.dataset.id);
+  'set-status': (el) => {
+    setEntryStatus(el.dataset.id, el.dataset.status);
+    ui.statusMenuId = null;
+    render();
+  },
+  'shelf-filter': (el) => {
+    const status = el.dataset.status;
+    const next = ui.shelfFilter.includes(status)
+      ? ui.shelfFilter.filter((s) => s !== status)
+      : [...ui.shelfFilter, status];
+    ui.shelfFilter = next.length ? next : [...STATUSES];
     render();
   },
   'refresh-index': () => refreshIndex(),
@@ -2096,6 +2162,14 @@ root.addEventListener('click', (event) => {
   const link = event.target.closest('a[href]');
   if (link && !link.dataset.action) return;
   const target = event.target.closest('[data-action]');
+  // The status popup closes as soon as anything outside it is clicked.
+  if (ui.statusMenuId && !event.target.closest('.status-wrap')) {
+    ui.statusMenuId = null;
+    if (!target) {
+      render();
+      return;
+    }
+  }
   if (!target) return;
   const handler = ACTIONS[target.dataset.action];
   if (!handler) return;
@@ -2120,9 +2194,6 @@ root.addEventListener('change', (event) => {
     render();
   } else if (el.id === 'sort') {
     ui.sort = el.value;
-    render();
-  } else if (el.id === 'shelf-filter') {
-    ui.shelfFilter = el.value;
     render();
   } else if (el.id === 'show-unowned') {
     ui.showUnowned = el.checked;
@@ -2190,7 +2261,11 @@ root.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && ui.detailId) {
+  if (event.key !== 'Escape') return;
+  if (ui.statusMenuId) {
+    ui.statusMenuId = null;
+    render();
+  } else if (ui.detailId) {
     ui.detailId = null;
     render();
   }
