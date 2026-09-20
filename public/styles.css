@@ -880,6 +880,21 @@ button:focus-visible {
   height: 100%;
   border-right: 2px solid var(--ink);
 }
+/* The stats added up: a ruled-off total under the bars. */
+.stat-power {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 2px solid var(--ink);
+}
+.stat-power .stat-label {
+  color: var(--blood);
+}
+.stat-power-rule {
+  height: 0;
+}
+.stat-power .stat-value {
+  font-size: 13px;
+}
 .stat-value,
 .bar-value {
   text-align: right;
@@ -948,6 +963,14 @@ button:focus-visible {
 }
 .radar-dot {
   fill: var(--ink);
+}
+.radar-power rect {
+  fill: var(--ink);
+}
+.radar-power text {
+  font: 700 12px var(--mono);
+  letter-spacing: 0.06em;
+  fill: var(--gold);
 }
 .radar-label {
   font: 700 9px var(--mono);
@@ -1773,8 +1796,11 @@ button.switch.on {
 
 /* -------------------------------------------------------------- stars, tags */
 
+/* Written 5 to 1, shown 1 to 5: see starRow(). */
 .stars {
   display: inline-flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
   gap: 1px;
   line-height: 1;
 }
@@ -1798,9 +1824,18 @@ button.switch.on {
 .stars.live .star {
   cursor: pointer;
 }
-.stars.live .star:hover {
+/* Pointing at a star fills it and everything up to it, and nothing beyond. */
+.stars.live:hover .star,
+.card .stars.live:hover .star {
+  color: #cdc4b0;
+  text-shadow: none;
+}
+.stars.live .star:hover,
+.stars.live .star:hover ~ .star,
+.card .stars.live .star:hover,
+.card .stars.live .star:hover ~ .star {
   color: var(--blood);
-  transform: none;
+  text-shadow: none;
 }
 
 .tag-row,
@@ -1811,6 +1846,7 @@ button.switch.on {
   flex-wrap: wrap;
   margin: 0;
 }
+/* A combo's own tags: buttons, because clicking one filters by it. */
 .tag {
   font: 700 10px/1 var(--mono);
   text-transform: uppercase;
@@ -1818,6 +1854,20 @@ button.switch.on {
   padding: 4px 7px 3px;
   background: var(--ink);
   color: var(--gold);
+  border: 2px solid var(--ink);
+  box-shadow: none;
+  transform: none;
+}
+button.tag:hover:not(:disabled) {
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: none;
+  transform: none;
+}
+.tag.on {
+  background: var(--blood);
+  border-color: var(--blood);
+  color: var(--paper);
 }
 .chip.on {
   background: var(--blood);

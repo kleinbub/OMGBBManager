@@ -33,7 +33,8 @@ stored until you confirm.
 
 The **Radar** switch in the toolbar draws each card's stats as a radar chart instead of bars -
 ATK, DEF and STA, plus DASH and BRST when the parts have them - on one scale shared by the whole
-collection, so shapes compare fairly. The choice is remembered in this browser.
+collection, so shapes compare fairly. The choice is remembered in this browser. Both forms end
+with **PWR**, every stat added up, as a single number to compare whole beyblades by.
 
 Names are shown the Hasbro way. `HellsScythe 4-60T` on the wiki is displayed as
 **Scythe Incendio 4-60T**, `DranSword` as **Sword Dran**, with the wiki name kept alongside.
@@ -87,8 +88,9 @@ Each combination gets:
 - a **name** built as the boxes print it - `Buster Dran 4-60DB`, `Reaper Rhino C4-55D`,
   `Rocket Griffon H` - rebuilt whenever you change a part
 - an optional **nickname**, shown as the card's title with the real name underneath
-- **tags** (`meta`, `test`, `funsies`, ... - anything you type, comma separated), with a chip
-  row in the toolbar to show only the combinations carrying one
+- **tags** (`meta`, `test`, `funsies`, ... - anything you type, comma separated). Tags already
+  in use are offered as chips under the box; clicking a tag anywhere - the toolbar row or a
+  card - filters the view by it
 - a **rating** out of five stars, clickable straight on the card; clicking the star it already
   sits on clears it
 - **strengths** and **weaknesses**, for what you learn as you battle with it
@@ -143,7 +145,8 @@ signed-in blader can read every shelf; there is no per-shelf privacy setting.
 After **Fetch from wiki**, the preview offers two buttons: **Add to collection** or
 **Add to wishlist**. If the product is already on your shelf the preview says so, and adding
 something you had wished for to the collection ticks the wish off rather than leaving a
-duplicate behind. **Got it** on a wishlist card does the same.
+duplicate behind. **Got it** on a wishlist card does the same, and **Wish it** on an owned card
+sends it back the other way - for something sold, lent out, or wanted again in another colour.
 
 Wished-for beyblades share the grid with owned ones and sort together with them - a wish
 still lands in the right place when you sort by weight - but they are drawn on different

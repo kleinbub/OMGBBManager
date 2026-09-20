@@ -693,6 +693,16 @@ export function acquireBeyblade(id) {
   return entry;
 }
 
+/** Put an owned beyblade back on the wishlist - the other way round from acquire. */
+export function wishBeyblade(id) {
+  const entry = store.data.beyblades.find((b) => b.id === id);
+  if (!entry || isWish(entry)) return null;
+  entry.status = 'wish';
+  entry.wishedAt = new Date().toISOString();
+  queueOps(entryOps(entry, false));
+  return entry;
+}
+
 export function removeBeyblade(id) {
   store.data.beyblades = store.data.beyblades.filter((b) => b.id !== id);
   queueOps([{ op: 'removeEntry', id }]);

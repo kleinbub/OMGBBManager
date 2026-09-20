@@ -42,6 +42,7 @@ import {
   onBroadcast,
   addBeyblade,
   acquireBeyblade,
+  wishBeyblade,
   isWish,
   updateBeyblade,
   removeBeyblade,
@@ -160,6 +161,28 @@ function statRow(label, value, max, cls) {
   );
 }
 
+/*
+ * Everything the chart draws, added up: one number to compare whole
+ * combinations by. Height is left out - it says how tall a part is, not how
+ * much it brings to a battle.
+ */
+const POWER_STATS = ['attack', 'defense', 'stamina', 'dash', 'burst'];
+
+function statTotal(stats) {
+  if (!stats) return null;
+  return POWER_STATS.reduce((sum, key) => sum + (typeof stats[key] === 'number' ? stats[key] : 0), 0);
+}
+
+function powerRow(stats) {
+  const total = statTotal(stats);
+  if (!total) return '';
+  return (
+    '<div class="stat-row stat-power" title="Every stat added up">' +
+    '<span class="stat-label">PWR</span><span class="stat-power-rule"></span>' +
+    '<span class="stat-value">' + Math.round(total) + '</span></div>'
+  );
+}
+
 function statBlockHtml(stats, max) {
   if (!stats) return '<p class="muted small">No stats on the wiki for these parts.</p>';
   const ceiling = max || statCeiling([stats]);
@@ -173,7 +196,7 @@ function statBlockHtml(stats, max) {
   if (typeof stats.burst === 'number' && stats.burst > 0) {
     html += statRow('BRST', stats.burst, ceiling, 'fill-burst');
   }
-  return html + '</div>';
+  return html + powerRow(stats) + '</div>';
 }
 
 const RADAR_AXES = [
@@ -235,12 +258,19 @@ function radarHtml(stats, max, type) {
     })
     .join('');
 
+  // The stats added up, tagged into the empty upper-left corner of the box.
+  const total = Math.round(statTotal(stats) || 0);
+  const power =
+    '<g class="radar-power"><rect x="13" y="4" width="' + (44 + String(total).length * 7) + '" height="19"/>' +
+    '<text x="18" y="18">PWR ' + total + '</text></g>';
+
   const accent = TYPE_ORDER.includes(type) ? 'var(--' + type.toLowerCase() + ')' : 'var(--neutral)';
-  const summary = axes.map(([, label], i) => label + ' ' + Math.round(values[i])).join(', ');
+  const summary =
+    axes.map(([, label], i) => label + ' ' + Math.round(values[i])).join(', ') + ', PWR ' + total;
   return (
     '<figure class="radar" style="--radar-accent:' + accent + '" role="img" aria-label="' + esc(summary) + '">' +
     '<svg viewBox="13 4 215 183" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    rings + spokes + '<polygon class="radar-shape" points="' + points(fracs) + '"/>' + dots + labels +
+    rings + spokes + '<polygon class="radar-shape" points="' + points(fracs) + '"/>' + dots + labels + power +
     '</svg></figure>'
   );
 }
@@ -814,6 +844,8 @@ function beyCard(entry, ceiling, serial) {
       '<button class="ghost small" data-action="qty-dec" data-id="' + id + '">-</button>' +
       '<span class="qty-label">' + entry.qty + '</span>' +
       '<button class="ghost small" data-action="qty-inc" data-id="' + id + '">+</button>' +
+      '<button class="ghost small wish-btn" data-action="wish-it" data-id="' + id + '" ' +
+      'title="Move it back to the wishlist">Wish it</button>' +
       '<button class="ghost small" data-action="refetch" data-id="' + id + '">Re-fetch</button>';
   } else if (!wish) {
     actions += '<span class="qty-label">x' + entry.qty + '</span>';
@@ -1061,7 +1093,6 @@ function partRow(record, ceiling) {
  * with the ratchet built in never asks for a ratchet.
  */
 
-const TAG_SUGGESTIONS = ['meta', 'test', 'funsies', 'tournament', 'jank'];
 /* putCombo / removeCombo arrived in this backend version. */
 const COMBO_API = 3;
 
@@ -1185,9 +1216,15 @@ function leadSelect(inventory, builder) {
   );
 }
 
-/** Stars. Interactive ones carry an action; the rest are just a reading. */
+/**
+ * Stars. Interactive ones carry an action; the rest are just a reading.
+ *
+ * The buttons are written highest-first and laid out right-to-left, so plain
+ * CSS can light up the star under the cursor and every one before it
+ * (`.star:hover ~ .star` reaches the ones printed after it - to its left).
+ */
 function starRow(rating, { action = '', id = '' } = {}) {
-  const stars = [1, 2, 3, 4, 5]
+  const stars = [5, 4, 3, 2, 1]
     .map((n) => {
       const on = n <= rating ? ' on' : '';
       if (!action) return '<span class="star' + on + '">&#9733;</span>';
@@ -1200,11 +1237,19 @@ function starRow(rating, { action = '', id = '' } = {}) {
   return '<span class="stars' + (action ? ' live' : '') + '">' + stars + '</span>';
 }
 
+/** A combo's own tags. Clicking one filters the view by it. */
 function tagChips(tags) {
   if (!tags?.length) return '';
   return (
     '<p class="tag-row">' +
-    tags.map((tag) => '<span class="tag">' + esc(tag) + '</span>').join('') +
+    tags
+      .map(
+        (tag) =>
+          '<button class="tag' + (ui.comboFilter.includes(tag) ? ' on' : '') + '" ' +
+          'data-action="combo-filter" data-tag="' + esc(tag) + '" ' +
+          'title="Show only combinations tagged ' + esc(tag) + '">' + esc(tag) + '</button>'
+      )
+      .join('') +
     '</p>'
   );
 }
@@ -1216,6 +1261,7 @@ function comboBuilder() {
   const slots = comboSlots(builder.lead, parts);
   const line = COMBO_LINES[builder.lead].line;
   const missing = slots.filter((kind) => !builder.partKeys[kind]);
+  const used = comboTags();
   const name = comboName(parts);
   const stats = sumPartStats(parts);
   const weight = comboWeight(parts, null);
@@ -1258,13 +1304,19 @@ function comboBuilder() {
     '<label class="field"><span>Tags (comma separated)</span>' +
     '<input id="combo-tagline" type="text" placeholder="meta, test, funsies" value="' +
     esc(builder.tags.join(', ')) + '"></label>' +
-    '<p class="tag-suggest">' +
-    TAG_SUGGESTIONS.map(
-      (tag) =>
-        '<button class="chip' + (builder.tags.includes(tag) ? ' on' : '') + '" data-action="combo-tag-quick" ' +
-        'data-tag="' + tag + '">' + tag + '</button>'
-    ).join('') +
-    '</p>' +
+    // Only tags this shelf already uses: the quick row is for reusing them,
+    // new ones are typed above.
+    (used.length
+      ? '<p class="tag-suggest">' +
+        used
+          .map(
+            ([tag]) =>
+              '<button class="chip' + (builder.tags.includes(tag) ? ' on' : '') + '" ' +
+              'data-action="combo-tag-quick" data-tag="' + esc(tag) + '">' + esc(tag) + '</button>'
+          )
+          .join('') +
+        '</p>'
+      : '') +
 
     '<label class="field"><span>Rating</span>' + starRow(builder.rating, { action: 'combo-rate-draft' }) + '</label>' +
 
@@ -1462,6 +1514,17 @@ function combosView() {
 
   const ceiling = statCeiling(store.data.combos.map((combo) => sumPartStats(partsOf(combo))));
   return html + '<div class="grid">' + combos.map((combo, i) => comboCard(combo, ceiling, i + 1)).join('') + '</div>';
+}
+
+/**
+ * Change the tags from code. The text box is the copy captureBuilder() reads,
+ * so it has to be written too, or the next redraw would read the old list back
+ * and undo the change.
+ */
+function setBuilderTags(tags) {
+  ui.builder.tags = tags;
+  const input = document.getElementById('combo-tagline');
+  if (input) input.value = tags.join(', ');
 }
 
 /**
@@ -1880,6 +1943,10 @@ const ACTIONS = {
     acquireBeyblade(el.dataset.id);
     render();
   },
+  'wish-it': (el) => {
+    wishBeyblade(el.dataset.id);
+    render();
+  },
   'refresh-index': () => refreshIndex(),
   'retry-save': () => retrySave(),
   'combo-new': () => {
@@ -1941,7 +2008,7 @@ const ACTIONS = {
     captureBuilder();
     const tag = el.dataset.tag;
     const tags = ui.builder.tags;
-    ui.builder.tags = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
+    setBuilderTags(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]);
     render();
   },
   'combo-filter': (el) => {
