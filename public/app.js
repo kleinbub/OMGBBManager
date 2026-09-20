@@ -2090,6 +2090,11 @@ const ACTIONS = {
 };
 
 root.addEventListener('click', (event) => {
+  // A plain link is the browser's business, even when it sits inside something
+  // that carries an action - the modal backdrop closes on a click, but the wiki
+  // links inside it still have to open.
+  const link = event.target.closest('a[href]');
+  if (link && !link.dataset.action) return;
   const target = event.target.closest('[data-action]');
   if (!target) return;
   const handler = ACTIONS[target.dataset.action];
